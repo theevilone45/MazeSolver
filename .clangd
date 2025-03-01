@@ -1,0 +1,8 @@
+CompileFlags:
+  Add:
+    - --gcc-toolchain=/usr/bin/gcc
+    - -std=c++23
+    - -stdlib=libstdc++
+    - -I/usr/include/c++/14
+    - -I/usr/include/x86_64-linux-gnu/c++/14
+    - -D__cpp_lib_expected=202202L
