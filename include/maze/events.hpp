@@ -4,7 +4,7 @@
 #include <print>
 
 #include "maze.hpp"
-#include "maze/config.hpp"
+#include "config.hpp"
 
 #include "SFML/Graphics/Transform.hpp"
 #include "SFML/Graphics/RenderWindow.hpp"

@@ -1,6 +1,8 @@
 #include "maze/maze.hpp"
+#include "maze/monads/identity.hpp"
 
 #include <cassert>
+#include <cstddef>
 #include <optional>
 #include <print>
 #include <random>
@@ -9,7 +11,10 @@
 
 namespace maze::logic {
 
+using Neighbor = std::tuple<size_t, size_t, WallDirection>;
+
 namespace {
+
 auto getNextCellCoords(const CellCoords &current, const Maze &maze,
                        WallDirection direction) -> std::optional<CellCoords> {
     const auto [column, row] = current;
@@ -53,26 +58,61 @@ auto getOpositeDirection(const WallDirection &direction) -> WallDirection {
     return WallDirection::NORTH;
 }
 
+const auto addNeighbor = [](std::vector<Neighbor> &&neighbors,
+                            const Maze &maze, WallDirection direction,
+                            const CellCoords &current)
+    -> monads::Identity<std::vector<Neighbor>> {
+    if (const auto nextCell = getNextCellCoords(current, maze, direction);
+        nextCell) {
+        const auto [column, row] = *nextCell;
+        if (maze[column, row].state == CellState::NONE) {
+            neighbors.emplace_back(column, row, direction);
+        }
+    }
+    return monads::Identity(std::move(neighbors));
+};
+
+auto removeNeighborWalls(Maze &&maze, const CellCoords &current, const CellCoords &neighbor,
+       WallDirection direction) -> monads::Identity<Maze> {
+    auto [column, row] = current;
+    auto [nextColumn, nextRow] = neighbor;
+    maze[column, row] =
+        removeWall(std::move(maze[column, row]), direction).get();
+    maze[nextColumn, nextRow] =
+        removeWall(std::move(maze[nextColumn, nextRow]),
+                   getOpositeDirection(direction))
+            .get();
+    return monads::Identity(std::move(maze));
+};
+
+const auto reserveVec =
+    [](std::vector<Neighbor> &&neighbors,
+       size_t amount) -> monads::Identity<std::vector<Neighbor>> {
+    neighbors.reserve(amount);
+    return monads::Identity(std::move(neighbors));
+};
+
 }; // namespace
 
-auto makeCell(size_t column, size_t row) -> Cell {
-    return {.column = column,
-            .row = row,
-            .state = CellState::NONE,
-            .walls = Walls{}};
+auto makeCell(size_t column, size_t row) -> monads::Identity<Cell> {
+    return monads::Identity<Cell>({.column = column,
+                                   .row = row,
+                                   .state = CellState::NONE,
+                                   .walls = Walls{}});
 }
 
-auto changeState(Cell &&cell, CellState state) -> Cell {
+auto changeState(Cell &&cell, CellState state) -> monads::Identity<Cell> {
     cell.state = state;
-    return std::move(cell);
+    return monads::Identity(std::move(cell));
 }
-auto addWall(Cell &&cell, WallDirection direction) -> Cell {
+auto addWall(Cell &&cell, WallDirection direction) -> monads::Identity<Cell> {
     cell.walls[direction] = true;
-    return std::move(cell);
+    return monads::Identity(std::move(cell));
 }
-auto removeWall(Cell &&cell, WallDirection direction) -> Cell {
+auto removeWall(Cell &&cell,
+                WallDirection direction) -> monads::Identity<Cell> {
     cell.walls[direction] = false;
-    return std::move(cell);
+    return monads::Identity(std::move(cell));
 }
 
 Maze::Maze(size_t width, size_t height) : width(width), height(height) {}
@@ -84,49 +124,22 @@ auto Maze::operator[](size_t column, size_t row) const -> const Cell & {
     return grid.at(row * width + column);
 }
 
-auto makeEmptyMaze(size_t width, size_t height) -> Maze {
+auto makeEmptyMaze(size_t width, size_t height) -> monads::Identity<Maze> {
     auto maze = Maze(width, height);
     maze.grid.reserve(width * height);
     for (size_t row = 0; row < height; ++row) {
         for (size_t column = 0; column < width; ++column) {
-            maze.grid.emplace_back(makeCell(column, row));
+            maze.grid.emplace_back(makeCell(column, row).get());
         }
     }
-    return maze;
+    return monads::Identity(std::move(maze));
 }
 
 auto getMazeCellCount(const Maze &maze) -> size_t {
     return maze.width * maze.height;
 }
 
-auto generateMaze(Maze &&maze) -> Maze {
-    using Neighbor = std::tuple<size_t, size_t, WallDirection>;
-    const auto addNeighbor =
-        [](std::vector<Neighbor> &&neighbors, const Maze &maze,
-           WallDirection direction,
-           const CellCoords &current) -> std::vector<Neighbor> {
-        if (const auto nextCell = getNextCellCoords(current, maze, direction);
-            nextCell) {
-            const auto [column, row] = *nextCell;
-            if (maze[column, row].state == CellState::NONE) {
-                neighbors.emplace_back(column, row, direction);
-            }
-        }
-        return std::move(neighbors);
-    };
-
-    const auto removeNeighborWalls = [](Maze &&maze, const CellCoords &current,
-                                        const CellCoords &neighbor,
-                                        WallDirection direction) -> Maze {
-        auto [column, row] = current;
-        auto [nextColumn, nextRow] = neighbor;
-        maze[column, row] = removeWall(std::move(maze[column, row]), direction);
-        maze[nextColumn, nextRow] =
-            removeWall(std::move(maze[nextColumn, nextRow]),
-                       getOpositeDirection(direction));
-        return std::move(maze);
-    };
-
+auto generateMaze(Maze &&maze) -> monads::Identity<Maze> {
     std::random_device rd;
     std::mt19937 gen(rd());
 
@@ -138,33 +151,41 @@ auto generateMaze(Maze &&maze) -> Maze {
     while (!cellStack.empty()) {
         auto current = cellStack.top();
 
-        std::vector<Neighbor> neighbors;
-        neighbors.reserve(4);
-
         // clang-format off
-        neighbors =
-            addNeighbor(
-                addNeighbor(
-                    addNeighbor(
-                        addNeighbor(std::move(neighbors),
-                            maze, WallDirection::NORTH, current),
-                        maze, WallDirection::EAST, current),
-                    maze, WallDirection::SOUTH, current),
-                maze, WallDirection::WEST, current);
+
+        auto neighbors =
+            monads::Identity<std::vector<Neighbor>>()
+            .bind(reserveVec, 4)
+            .bind(addNeighbor, maze, WallDirection::NORTH, current)
+            .bind(addNeighbor, maze, WallDirection::EAST,  current)
+            .bind(addNeighbor, maze, WallDirection::SOUTH, current)
+            .bind(addNeighbor, maze, WallDirection::WEST,  current);
+
+        // neighbors.reserve(4);
+        // neighbors =
+        //     addNeighbor(
+        //         addNeighbor(
+        //             addNeighbor(
+        //                 addNeighbor(std::move(neighbors),
+        //                     maze, WallDirection::NORTH, current),
+        //                 maze, WallDirection::EAST, current),
+        //             maze, WallDirection::SOUTH, current),
+        //         maze, WallDirection::WEST, current);
         // clang-format on
 
-        if (neighbors.empty()) {
+        if (neighbors.get().empty()) {
             cellStack.pop();
             continue;
         }
 
         std::uniform_int_distribution<> dis(
-            0, static_cast<int>(neighbors.size() - 1));
-        auto [nextColumn, nextRow, direction] =
-            neighbors[static_cast<size_t>(dis(gen))];
+            0, static_cast<int>(neighbors.get().size() - 1));
+        const auto [nextColumn, nextRow, direction] =
+            neighbors.get()[static_cast<size_t>(dis(gen))];
 
-        maze = removeNeighborWalls(std::move(maze), current,
-                                   {nextColumn, nextRow}, direction);
+        auto mazeMonad = monads::Identity(std::move(maze))
+            .bind(removeNeighborWalls, current, {nextColumn, nextRow}, direction);
+
 
         maze[nextColumn, nextRow] =
             changeState(std::move(maze[nextColumn, nextRow]), CellState::EMPTY);
@@ -172,18 +193,20 @@ auto generateMaze(Maze &&maze) -> Maze {
         cellStack.push({nextColumn, nextRow});
     }
 
-    return std::move(maze);
+    return monads::Identity(std::move(maze));
 }
 
-auto addBeginCell(Maze &&maze, const CellCoords& coords) -> Maze {
-    const auto [column, row] = coords;
-    maze[column, row] = changeState(std::move(maze[column, row]), CellState::BEGIN);
-    return std::move(maze);
-}
-auto addEndCell(Maze &&maze, const CellCoords& coords) -> Maze {
-    const auto [column, row] = coords;
-    maze[column, row] = changeState(std::move(maze[column, row]), CellState::END);
-    return std::move(maze);
-}
+// auto addBeginCell(Maze &&maze, const CellCoords &coords) -> monads::Identity<Maze> {
+//     const auto [column, row] = coords;
+//     maze[column, row] = monads::Identity(maze[column, row])
+//         .bind(changeState, CellState::BEGIN).get();
+//     return monads::Identity(std::move(maze));
+// }
+// auto addEndCell(Maze &&maze, const CellCoords &coords) -> monads::Identity<Maze> {
+//     const auto [column, row] = coords;
+//     maze[column, row] = monads::Identity(maze[column, row])
+//         .bind(changeState, CellState::END).get();
+//     return monads::Identity(std::move(maze));
+// }
 
 } // namespace maze::logic

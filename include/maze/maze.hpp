@@ -6,6 +6,8 @@
 #include <utility>
 #include <vector>
 
+#include "monads/identity.hpp"
+
 namespace maze::logic {
 
 using CellCoords = std::pair<size_t, size_t>; // column, row
@@ -32,10 +34,10 @@ struct Cell {
     Walls walls;
 };
 
-auto makeCell(size_t column, size_t row) -> Cell;
-auto changeState(Cell &&cell, CellState state) -> Cell;
-auto addWall(Cell &&cell, WallDirection direction) -> Cell;
-auto removeWall(Cell &&cell, WallDirection direction) -> Cell;
+auto makeCell(size_t column, size_t row) -> monads::Identity<Cell>;
+auto changeState(Cell &&cell, CellState state) -> monads::Identity<Cell>;
+auto addWall(Cell &&cell, WallDirection direction) -> monads::Identity<Cell>;
+auto removeWall(Cell &&cell, WallDirection direction) -> monads::Identity<Cell>;
 
 struct Maze {
     std::vector<Cell> grid;
@@ -51,11 +53,11 @@ struct Maze {
     inline auto end() { return grid.end(); }
 };
 
-auto makeEmptyMaze(size_t width, size_t height) -> Maze;
+auto makeEmptyMaze(size_t width, size_t height) -> monads::Identity<Maze>;
 auto getMazeCellCount(const Maze &maze) -> size_t;
-auto generateMaze(Maze &&maze) -> Maze;
-auto addBeginCell(Maze &&maze, const CellCoords& coords) -> Maze;
-auto addEndCell(Maze &&maze, const CellCoords& coords) -> Maze;
+auto generateMaze(Maze &&maze) -> monads::Identity<Maze>;
+auto addBeginCell(Maze &&maze, const CellCoords& coords) -> monads::Identity<Maze>;
+auto addEndCell(Maze &&maze, const CellCoords& coords) -> monads::Identity<Maze>;
 
 } // namespace maze::logic
 

@@ -6,6 +6,7 @@
 
 #include "maze/config.hpp"
 #include "maze/maze.hpp"
+#include "maze/monads/identity.hpp"
 
 #include <cassert>
 #include <cstddef>
@@ -136,8 +137,8 @@ auto makeWindow() -> sf::RenderWindow {
     return sf::RenderWindow(sf::VideoMode(windowSize), "MazeSolver");
 }
 
-auto makeEmptyMaze(DrawableMaze &&drawableMaze,
-                   const logic::Maze &maze) -> DrawableMaze {
+auto makeEmptyMaze(const logic::Maze &maze) -> monads::Identity<DrawableMaze> {
+    auto drawableMaze = DrawableMaze{};
     const auto &cfg = ConfigService::get();
     const auto cellSizeF = static_cast<float>(cfg.cellSize);
     const size_t cellsCount = getMazeCellCount(maze);
@@ -154,11 +155,11 @@ auto makeEmptyMaze(DrawableMaze &&drawableMaze,
                             createWallVertices(columnF, rowF, cellSizeF,
                                                sf::Color::Transparent));
     }
-    return std::move(drawableMaze);
+    return monads::Identity(std::move(drawableMaze));
 }
 
-auto updateCellState(DrawableMaze &&drawableMaze,
-                     const logic::Cell &cell) -> DrawableMaze {
+auto updateCellState(DrawableMaze &&drawableMaze, const logic::Cell &cell)
+    -> monads::Identity<DrawableMaze> {
     const auto &cfg = ConfigService::get();
     const auto cellStartIdx =
         (cell.row * cfg.columnsCount + cell.column) * cCellVertexCount;
@@ -170,19 +171,20 @@ auto updateCellState(DrawableMaze &&drawableMaze,
         v.color = getStateColor(cell.state);
     }
 
-    return std::move(drawableMaze);
+    return monads::Identity(std::move(drawableMaze));
 };
 
-
-auto updateMazeState(DrawableMaze &&drawableMaze, const logic::Maze& maze) -> DrawableMaze {
-    for(auto& cell : maze) {
-        drawableMaze = updateCellState(std::move(drawableMaze), cell);
+auto updateMazeState(DrawableMaze &&drawableMaze, const logic::Maze &maze)
+    -> monads::Identity<DrawableMaze> {
+    auto intermediate = monads::Identity(std::move(drawableMaze));
+    for (const auto &cell : maze) {
+        intermediate.bind(updateCellState, cell);
     }
-    return std::move(drawableMaze);
+    return intermediate;
 }
 
 auto setWalls(DrawableMaze &&drawableMaze,
-              const logic::Maze &maze) -> DrawableMaze {
+              const logic::Maze &maze) -> monads::Identity<DrawableMaze> {
     const auto &cfg = ConfigService::get();
 
     for (const auto &cell : maze) {
@@ -200,16 +202,18 @@ auto setWalls(DrawableMaze &&drawableMaze,
             | std::views::join;
         // clang-format on
 
-        for(auto& vertex : wallVerticesView) {
+        for (auto &vertex : wallVerticesView) {
             vertex.color = sf::Color::White;
         }
     }
 
-    return std::move(drawableMaze);
+    return monads::Identity(std::move(drawableMaze));
 }
 
+namespace side_effects {
+
 auto draw(const DrawableMaze &drawableMaze, sf::RenderWindow &window) -> void {
-    const auto& cfg = ConfigService::get();
+    const auto &cfg = ConfigService::get();
     const auto offset = static_cast<float>(cfg.cellSize) / 2.f;
     sf::Transform transform;
     transform.translate({offset, offset});
@@ -218,5 +222,7 @@ auto draw(const DrawableMaze &drawableMaze, sf::RenderWindow &window) -> void {
     window.draw(drawableMaze.walls.data(), drawableMaze.walls.size(),
                 sf::PrimitiveType::Lines, transform);
 }
+
+} // namespace side_effects
 
 } // namespace maze::render
