@@ -32,7 +32,15 @@ set(Includes
 
 include(FetchContent)
 include(cmake/sfml.cmake)
+include(cmake/argparse.cmake)
 
 add_executable(${BinName} ${Sources})
 target_include_directories(${BinName} PRIVATE ${Includes})
-target_link_libraries(${BinName} PRIVATE sfml-graphics sfml-window sfml-system)
+target_link_libraries(
+    ${BinName}
+PRIVATE
+    sfml-graphics
+    sfml-window
+    sfml-system
+    argparse::argparse
+)
