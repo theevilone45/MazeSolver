@@ -24,6 +24,7 @@ set(Sources
     src/app.cpp
     src/utils.cpp
     src/solvers/dfs.cpp
+    src/solvers/bfs.cpp
 )
 set(Includes
     include

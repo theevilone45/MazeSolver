@@ -3,28 +3,30 @@
 
 #include "../common/types.hpp"
 #include "../monads/identity.hpp"
+#include "generic_solver.hpp"
 
+#include <memory>
 #include <stack>
 
 namespace maze::solvers::dfs {
 
-class DfsSolution {
+class DfsSolver : public GenericSolver {
     public:
-    auto getNextMazeState(common::Maze &&maze) -> monads::Identity<common::Maze>;
-    auto markSolution(common::Maze &&maze) -> monads::Identity<common::Maze>;
-    auto isSolved() const -> bool;
+    auto getNextMazeState(common::Maze &&maze) -> monads::Identity<common::Maze> override;
+    auto markSolution(common::Maze &&maze) -> monads::Identity<common::Maze> override;
+    auto isSolved() const -> bool override;
 
 private:
     std::stack<common::CellCoords> mCellStack;
     bool mSolved = false;
 
 private:
-    friend auto initSolution(const common::CellCoords &begin)
-        -> DfsSolution;
+    friend auto initSolver(const common::CellCoords &begin)
+        -> std::unique_ptr<GenericSolver>;
 };
 
-auto initSolution(const common::CellCoords &begin)
-    -> DfsSolution;
+auto initSolver(const common::CellCoords &begin)
+    -> std::unique_ptr<GenericSolver>;
 
 }; // namespace maze::solvers::dfs
 

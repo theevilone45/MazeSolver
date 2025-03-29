@@ -7,6 +7,21 @@
 #include <utility>
 #include <vector>
 
+#include <functional>
+#include <utility>
+
+namespace std {
+    template <>
+    struct hash<std::pair<size_t, size_t>> {
+        std::size_t operator()(const std::pair<size_t, size_t>& coords) const noexcept {
+            std::size_t h1 = std::hash<size_t>{}(coords.first);
+            std::size_t h2 = std::hash<size_t>{}(coords.second);
+            // Combine the two hashes using bitwise operations.
+            return h1 ^ (h2 << 1);
+        }
+    };
+}
+
 namespace maze::common {
 
 using CellCoords = std::pair<size_t, size_t>; // column, row

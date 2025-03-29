@@ -2,8 +2,10 @@
 #include "maze/common/types.hpp"
 #include "maze/debug.hpp"
 #include "maze/monads/identity.hpp"
+#include "maze/solvers/generic_solver.hpp"
 #include "maze/utils.hpp"
 #include <cstddef>
+#include <memory>
 
 namespace maze::solvers::dfs {
 
@@ -19,7 +21,7 @@ auto isVisitable(const common::Maze &maze, const common::CellCoords &current,
         return false;
     }
     const auto opositeDirection = utils::getOpositeDirection(direction);
-    if (!utils::isWallPresent(maze, current, direction) ||
+    if (!utils::isWallPresent(maze, current, direction) &&
         !utils::isWallPresent(maze, next, opositeDirection)) {
         return true;
     }
@@ -28,9 +30,9 @@ auto isVisitable(const common::Maze &maze, const common::CellCoords &current,
 
 } // namespace
 
-auto DfsSolution::isSolved() const -> bool { return mSolved; }
+auto DfsSolver::isSolved() const -> bool { return mSolved; }
 
-auto DfsSolution::getNextMazeState(common::Maze &&maze)
+auto DfsSolver::getNextMazeState(common::Maze &&maze)
     -> monads::Identity<common::Maze> {
     LOG("started solving maze with DFS");
     LOG(std::format("cellStack size: {}", mCellStack.size()));
@@ -82,7 +84,7 @@ auto DfsSolution::getNextMazeState(common::Maze &&maze)
     return mazeMonad;
 }
 
-auto DfsSolution::markSolution(common::Maze &&maze)
+auto DfsSolver::markSolution(common::Maze &&maze)
     -> monads::Identity<common::Maze> {
     auto mazeMonad = monads::Identity{std::move(maze)};
     while (!mCellStack.empty()) {
@@ -94,10 +96,10 @@ auto DfsSolution::markSolution(common::Maze &&maze)
     return mazeMonad;
 }
 
-auto initSolution(const common::CellCoords &begin) -> DfsSolution {
-    auto solution = DfsSolution();
+auto initSolver(const common::CellCoords &begin) -> std::unique_ptr<GenericSolver> {
+    auto solution = DfsSolver();
     solution.mCellStack.push(begin);
-    return solution;
+    return std::make_unique<DfsSolver>(solution);
 }
 
 } // namespace maze::solvers::dfs

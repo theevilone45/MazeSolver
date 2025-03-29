@@ -4,11 +4,13 @@
 
 #include "maze/common/types.hpp"
 #include "maze/config.hpp"
+#include "maze/debug.hpp"
 #include "maze/events.hpp"
 #include "maze/maze.hpp"
 #include "maze/monads/identity.hpp"
 #include "maze/renderer.hpp"
 #include "maze/solvers/dfs.hpp"
+#include "maze/solvers/bfs.hpp"
 
 namespace maze::app {
 
@@ -39,7 +41,7 @@ auto run() -> void {
             .bind(render::updateMazeState, mazeMonad.get());
 
     using Clock = std::chrono::high_resolution_clock;
-    auto solver = solvers::dfs::initSolution(common::CellCoords{0, 0});
+    auto solver = solvers::bfs::initSolver(common::CellCoords{0, 0});
     while (window.isOpen()) {
         const auto t1 = Clock::now();
         window.handleEvents(events::getOnClose(window));
@@ -47,7 +49,7 @@ auto run() -> void {
         window.clear();
 
         mazeMonad = mazeMonad.bind([&solver](common::Maze &&maze) {
-            return solver.getNextMazeState(std::move(maze));
+            return solver->getNextMazeState(std::move(maze));
         });
 
         drawableMazeMonad =
@@ -63,8 +65,7 @@ auto run() -> void {
         [[maybe_unused]] const auto dt =
             std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1)
                 .count();
-        // std::println("Render time {}[ms]", dt);
-        // std::cout << "Render time: " << dt << "[ms]\n";
+        LOG(std::format("render time {}[ms]", dt));
     }
 }
 

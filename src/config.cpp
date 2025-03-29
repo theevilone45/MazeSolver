@@ -6,7 +6,7 @@ namespace maze {
 
 namespace {
 
-constexpr const uint32_t cDefaultCellSize{5};
+constexpr const uint32_t cDefaultCellSize{20};
 constexpr const uint32_t cDefaultColumnCount{1920/cDefaultCellSize};
 constexpr const uint32_t cDefaultRowsCount{1080/cDefaultCellSize};
 constexpr const uint32_t cDefaultMaxFps{120};
