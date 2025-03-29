@@ -6,16 +6,18 @@ namespace maze {
 
 namespace {
 
-constexpr const uint32_t cDefaultCellSize{20};
-constexpr const uint32_t cDefaultColumnCount{800/20};
-constexpr const uint32_t cDefaultRowsCount{600/20};
+constexpr const uint32_t cDefaultCellSize{5};
+constexpr const uint32_t cDefaultColumnCount{1920/cDefaultCellSize};
+constexpr const uint32_t cDefaultRowsCount{1080/cDefaultCellSize};
+constexpr const uint32_t cDefaultMaxFps{120};
 
 } // namespace
 
 auto getDefaultConfig() -> Config {
     return Config{.cellSize = cDefaultCellSize,
                   .columnsCount = cDefaultColumnCount,
-                  .rowsCount = cDefaultRowsCount};
+                  .rowsCount = cDefaultRowsCount,
+                  .maxFps = cDefaultMaxFps};
 }
 auto getCliConfig(int, char **) -> Config {
     return getDefaultConfig(); // for now

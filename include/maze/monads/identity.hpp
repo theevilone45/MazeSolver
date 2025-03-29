@@ -13,32 +13,26 @@ private:
 public:
     Identity() : mValue({}) {}
     explicit Identity(ValueType &&v) : mValue(std::move(v)) {}
-    // explicit Identity(const ValueType &v) : mValue(v) {}
+    explicit Identity(const ValueType &v) : mValue(v) {}
 
     const ValueType &get() const { return mValue; }
-    // ValueType &get() { return mValue; }
+    ValueType &get() { return mValue; }
 
     // clang-format off
 
     // use on r-value
     template <typename Functor, typename... Args>
     auto bind(Functor &&fun, Args &&...args)
-    && -> decltype(fun(std::move(mValue), std::forward<Args>(args)...)) {
-        return fun(std::move(mValue), std::forward<Args>(args)...);
-    }
-
-    template <typename Functor, typename... Args>
-    auto bind(Functor &&fun, Args &&...args)
-    & -> decltype(fun(std::move(mValue), std::forward<Args>(args)...)) {
+     -> decltype(fun(std::move(mValue), std::forward<Args>(args)...)) {
         return fun(std::move(mValue), std::forward<Args>(args)...);
     }
 
     // use on l-value
-    // template <typename Functor, typename... Args>
-    // auto bind(Functor &&fun, Args &&...args)
-    //  -> decltype(fun(mValue, std::forward<Args>(args)...)) {
-    //     return fun(mValue, std::forward<Args>(args)...);
-    // }
+    template <typename Functor, typename... Args>
+    auto bind(Functor &&fun, Args &&...args)
+     -> decltype(fun(mValue, std::forward<Args>(args)...)) {
+        return fun(mValue, std::forward<Args>(args)...);
+    }
 
     //clang-format on
 };
