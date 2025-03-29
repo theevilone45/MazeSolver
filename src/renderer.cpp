@@ -4,8 +4,11 @@
 #include "SFML/Graphics/Vertex.hpp"
 #include "SFML/System/Vector2.hpp"
 
+#include "maze/common/types.hpp"
 #include "maze/config.hpp"
+#include "maze/debug.hpp"
 #include "maze/maze.hpp"
+#include "maze/monads/identity.hpp"
 
 #include <cassert>
 #include <cstddef>
@@ -109,21 +112,23 @@ auto addWallVertices(std::vector<sf::Vertex> &&walls,
     return std::move(walls);
 };
 
-auto getStateColor(logic::CellState state) -> sf::Color {
+auto getStateColor(common::CellState state) -> sf::Color {
     switch (state) {
-    case logic::CellState::BEGIN:
-        return sf::Color::Magenta;
-    case logic::CellState::END:
-        return sf::Color::Red;
-    case logic::CellState::EMPTY:
+    case common::CellState::BEGIN:
+        return sf::Color(184, 213, 118);
+    case common::CellState::END:
+        return sf::Color(254, 79, 45);
+    case common::CellState::EMPTY:
         return sf::Color::Black;
-    case logic::CellState::PATH:
-        return sf::Color::Green;
-    case logic::CellState::VISITED:
-        return sf::Color::Yellow;
-    case logic::CellState::NONE:
+    case common::CellState::PATH:
+        return sf::Color(255, 217, 95);
+    case common::CellState::VISITED:
+        return sf::Color(87, 180, 186);
+    case common::CellState::NONE:
         return sf::Color::Transparent;
     };
+    LOG("Code should never reach this path");
+    assert(false);
     return sf::Color::Transparent;
 }
 
@@ -133,14 +138,16 @@ auto makeWindow() -> sf::RenderWindow {
     const auto &cfg = ConfigService::get();
     const auto windowSize = sf::Vector2u{cfg.cellSize * (cfg.columnsCount + 1),
                                          cfg.cellSize * (cfg.rowsCount + 1)};
-    return sf::RenderWindow(sf::VideoMode(windowSize), "MazeSolver");
+    auto window = sf::RenderWindow(sf::VideoMode(windowSize), "MazeSolver");
+    window.setFramerateLimit(cfg.maxFps);
+    return window;
 }
 
-auto makeEmptyMaze(DrawableMaze &&drawableMaze,
-                   const logic::Maze &maze) -> DrawableMaze {
+auto makeEmptyMaze(const common::Maze &maze) -> monads::Identity<DrawableMaze> {
+    auto drawableMaze = DrawableMaze{};
     const auto &cfg = ConfigService::get();
     const auto cellSizeF = static_cast<float>(cfg.cellSize);
-    const size_t cellsCount = getMazeCellCount(maze);
+    const size_t cellsCount = init::getMazeCellCount(maze);
     drawableMaze.cells.reserve(cellsCount * cCellVertexCount);
     drawableMaze.walls.reserve(cellsCount * cWallVertexCount);
     for (const auto &cell : maze) {
@@ -154,11 +161,11 @@ auto makeEmptyMaze(DrawableMaze &&drawableMaze,
                             createWallVertices(columnF, rowF, cellSizeF,
                                                sf::Color::Transparent));
     }
-    return std::move(drawableMaze);
+    return monads::Identity(std::move(drawableMaze));
 }
 
-auto updateCellState(DrawableMaze &&drawableMaze,
-                     const logic::Cell &cell) -> DrawableMaze {
+auto updateCellState(DrawableMaze &&drawableMaze, const common::Cell &cell)
+    -> monads::Identity<DrawableMaze> {
     const auto &cfg = ConfigService::get();
     const auto cellStartIdx =
         (cell.row * cfg.columnsCount + cell.column) * cCellVertexCount;
@@ -170,19 +177,20 @@ auto updateCellState(DrawableMaze &&drawableMaze,
         v.color = getStateColor(cell.state);
     }
 
-    return std::move(drawableMaze);
+    return monads::Identity(std::move(drawableMaze));
 };
 
-
-auto updateMazeState(DrawableMaze &&drawableMaze, const logic::Maze& maze) -> DrawableMaze {
-    for(auto& cell : maze) {
-        drawableMaze = updateCellState(std::move(drawableMaze), cell);
+auto updateMazeState(DrawableMaze &&drawableMaze, const common::Maze &maze)
+    -> monads::Identity<DrawableMaze> {
+    auto intermediate = monads::Identity(std::move(drawableMaze));
+    for (const auto &cell : maze) {
+        intermediate = intermediate.bind(updateCellState, cell);
     }
-    return std::move(drawableMaze);
+    return intermediate;
 }
 
 auto setWalls(DrawableMaze &&drawableMaze,
-              const logic::Maze &maze) -> DrawableMaze {
+              const common::Maze &maze) -> monads::Identity<DrawableMaze> {
     const auto &cfg = ConfigService::get();
 
     for (const auto &cell : maze) {
@@ -196,20 +204,22 @@ auto setWalls(DrawableMaze &&drawableMaze,
             | std::views::drop(wallsStartIdx)
             | std::views::take(cWallVertexCount)
             | std::views::chunk(2)
-            | std::views::filter([&](const auto &) { return cell.walls[static_cast<logic::WallDirection>(idx++)]; })
+            | std::views::filter([&](const auto &) { return cell.walls[static_cast<common::WallDirection>(idx++)]; })
             | std::views::join;
         // clang-format on
 
-        for(auto& vertex : wallVerticesView) {
+        for (auto &vertex : wallVerticesView) {
             vertex.color = sf::Color::White;
         }
     }
 
-    return std::move(drawableMaze);
+    return monads::Identity(std::move(drawableMaze));
 }
 
+namespace side_effects {
+
 auto draw(const DrawableMaze &drawableMaze, sf::RenderWindow &window) -> void {
-    const auto& cfg = ConfigService::get();
+    const auto &cfg = ConfigService::get();
     const auto offset = static_cast<float>(cfg.cellSize) / 2.f;
     sf::Transform transform;
     transform.translate({offset, offset});
@@ -218,5 +228,7 @@ auto draw(const DrawableMaze &drawableMaze, sf::RenderWindow &window) -> void {
     window.draw(drawableMaze.walls.data(), drawableMaze.walls.size(),
                 sf::PrimitiveType::Lines, transform);
 }
+
+} // namespace side_effects
 
 } // namespace maze::render

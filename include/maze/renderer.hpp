@@ -4,7 +4,8 @@
 #include "SFML/Graphics/RenderWindow.hpp"
 #include "SFML/Graphics/Vertex.hpp"
 
-#include "maze/maze.hpp"
+#include "monads/identity.hpp"
+#include "common/types.hpp"
 
 #include <vector>
 
@@ -16,17 +17,18 @@ struct DrawableMaze {
 };
 
 auto makeWindow() -> sf::RenderWindow;
-auto makeEmptyMaze(DrawableMaze &&drawableMaze,
-                   const logic::Maze &maze) -> DrawableMaze;
-auto updateMaze(DrawableMaze &&drawableMaze,
-                const logic::Maze &maze) -> DrawableMaze;
+
+auto makeEmptyMaze(const common::Maze &maze) -> monads::Identity<DrawableMaze>;
 auto updateCellState(DrawableMaze &&drawableMaze,
-                     const logic::Cell &cell) -> DrawableMaze;
-auto updateMazeState(DrawableMaze &&drawableMaze, const logic::Maze& maze) -> DrawableMaze;
+                     const common::Cell &cell) -> monads::Identity<DrawableMaze>;
+auto updateMazeState(DrawableMaze &&drawableMaze,
+                     const common::Maze &maze) -> monads::Identity<DrawableMaze>;
 auto setWalls(DrawableMaze &&drawableMaze,
-              const logic::Maze &maze) -> DrawableMaze;
-auto draw(const DrawableMaze &drawableMaze, sf::RenderWindow &window) -> void;
-auto handleEvents() -> void;
+              const common::Maze &maze) -> monads::Identity<DrawableMaze>;
+
+namespace side_effects {
+    auto draw(const DrawableMaze &drawableMaze, sf::RenderWindow &window) -> void;
+} // namespace side_effects
 
 } // namespace maze::render
 

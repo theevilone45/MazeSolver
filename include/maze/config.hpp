@@ -9,6 +9,7 @@ struct Config {
     uint32_t cellSize;
     uint32_t columnsCount; // width
     uint32_t rowsCount;    // height
+    uint32_t maxFps;
 };
 
 auto getDefaultConfig() -> Config;

@@ -1,61 +1,27 @@
 #ifndef INCLUDE_MAZE_MAZE_HPP
 #define INCLUDE_MAZE_MAZE_HPP
 
-#include <array>
 #include <cstddef>
-#include <utility>
-#include <vector>
 
-namespace maze::logic {
+#include "common/types.hpp"
+#include "monads/identity.hpp"
 
-using CellCoords = std::pair<size_t, size_t>; // column, row
-enum class CellState { NONE, EMPTY, VISITED, PATH, BEGIN, END };
-enum class WallDirection { NORTH, EAST, SOUTH, WEST };
+namespace maze::init {
 
-struct Walls {
-    Walls() { flags.fill(true); }
+auto makeCell(size_t column, size_t row) -> monads::Identity<common::Cell>;
 
-    inline auto operator[](WallDirection direction) const -> bool {
-        return flags[static_cast<size_t>(std::to_underlying(direction))];
-    }
-    inline auto operator[](WallDirection direction) -> bool& {
-        return flags[static_cast<size_t>(std::to_underlying(direction))];
-    }
+auto addWall(common::Cell &&cell,
+             common::WallDirection direction) -> monads::Identity<common::Cell>;
 
-    std::array<bool, 4> flags{};
-};
+auto removeWall(common::Cell &&cell, common::WallDirection direction)
+    -> monads::Identity<common::Cell>;
 
-struct Cell {
-    size_t column;
-    size_t row;
-    CellState state;
-    Walls walls;
-};
+auto makeEmptyMaze(size_t width,
+                   size_t height) -> monads::Identity<common::Maze>;
 
-auto makeCell(size_t column, size_t row) -> Cell;
-auto changeState(Cell &&cell, CellState state) -> Cell;
-auto addWall(Cell &&cell, WallDirection direction) -> Cell;
-auto removeWall(Cell &&cell, WallDirection direction) -> Cell;
+auto getMazeCellCount(const common::Maze &maze) -> size_t;
 
-struct Maze {
-    std::vector<Cell> grid;
-    size_t width;
-    size_t height;
-
-    Maze(size_t width, size_t height);
-    auto operator[](size_t column, size_t row) -> Cell &;
-    auto operator[](size_t column, size_t row) const -> const Cell &;
-    inline auto begin() const { return grid.begin(); }
-    inline auto end() const { return grid.end(); }
-    inline auto begin() { return grid.begin(); }
-    inline auto end() { return grid.end(); }
-};
-
-auto makeEmptyMaze(size_t width, size_t height) -> Maze;
-auto getMazeCellCount(const Maze &maze) -> size_t;
-auto generateMaze(Maze &&maze) -> Maze;
-auto addBeginCell(Maze &&maze, const CellCoords& coords) -> Maze;
-auto addEndCell(Maze &&maze, const CellCoords& coords) -> Maze;
+auto generateMaze(common::Maze &&maze) -> monads::Identity<common::Maze>;
 
 } // namespace maze::logic
 
