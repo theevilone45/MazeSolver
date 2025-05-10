@@ -76,7 +76,7 @@ auto run() -> void {
         window.display();
 
         const auto t2 = Clock::now();
-        const auto dt =
+        [[maybe_unused]] const auto dt =
             std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1)
                 .count();
         LOG(std::format("render time {}[ms]", dt));

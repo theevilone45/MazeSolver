@@ -1,9 +1,7 @@
 #include "maze/config.hpp"
 #include "argparse/argparse.hpp"
 
-#include <algorithm>
 #include <iostream>
-#include <iterator>
 #include <unordered_map>
 #include <utility>
 

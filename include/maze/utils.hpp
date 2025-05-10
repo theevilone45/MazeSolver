@@ -9,17 +9,6 @@
 
 namespace maze::utils {
 
-// template <typename F>
-// concept Predicate =
-//     std::invocable<F, const common::Maze &, const common::CellCoords &, const
-//     common::CellCoords&,
-//                    common::WallDirection> &&
-//     std::same_as<
-//         std::invoke_result_t<F, const common::Maze &,
-//                              const common::CellCoords &, const
-//                              common::CellCoords&, common::WallDirection>,
-//         bool>;
-
 using Predicate =
     std::function<bool(const common::Maze &, const common::CellCoords &,
                        const common::CellCoords &, common::WallDirection)>;
